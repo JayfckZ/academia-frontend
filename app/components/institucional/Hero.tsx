@@ -6,9 +6,9 @@ export default function Hero() {
 
       <div className="relative z-20 text-center px-6 max-w-4xl mx-auto mt-20">
         <h1 className="text-5xl md:text-7xl font-black text-white uppercase tracking-tight leading-none mb-6">
-          Eleve seu nível.
+          Eleve seu nível
           <br />
-          <span className="text-brand-cyan">Otimize</span> seu corpo.
+          <span className="text-brand-cyan">Otimize</span> seu corpo
         </h1>
         <p className="text-brand-gray text-lg md:text-xl mb-10 max-w-2xl mx-auto">
           A primeira academia desenhada para quem busca alta performance física
