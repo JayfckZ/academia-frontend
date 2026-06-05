@@ -4,6 +4,7 @@
   * {
     box-sizing: border-box;
   }
+  
   @theme {
     /* Cores da Identidade Visual */
     --color-brand-dark: #0d0d0d;

@@ -1,40 +1,5 @@
 import CheckIcon from '@mui/icons-material/Check'
-
-type PlanDurationType = 'DAYS' | 'WEEKS' | 'MONTHS' | 'YEARS'
-
-interface Plan {
-  id: string
-  name: string
-  description: string | null
-  price: number | string
-  duration: number
-  durationType: PlanDurationType
-  active: boolean
-}
-
-async function fetchPlans(): Promise<Plan[]> {
-  try {
-    const res = await fetch('http://localhost:3333/plans', {
-      cache: 'no-store'
-    })
-
-    if (!res.ok) {
-      console.error('Erro HTTP:', res.status)
-      return []
-    }
-
-    const data = await res.json()
-
-    if (Array.isArray(data)) return data
-    if (data && Array.isArray(data.data)) return data.data
-    if (data && Array.isArray(data.plans)) return data.plans
-
-    return []
-  } catch (error) {
-    console.error('Erro de Fetch:', error)
-    return []
-  }
-}
+import { getPlans, PlanDurationType } from '../../services/plans'
 
 const formatDuration = (duration: number, type: PlanDurationType) => {
   if (type === 'MONTHS' && duration === 1) return '/mês'
@@ -45,8 +10,7 @@ const formatDuration = (duration: number, type: PlanDurationType) => {
 }
 
 export default async function Planos() {
-  const plans = await fetchPlans()
-
+  const plans = await getPlans()
   const activePlans = Array.isArray(plans)
     ? plans.filter((plan) => plan.active)
     : []
@@ -67,7 +31,6 @@ export default async function Planos() {
         <div className="flex flex-wrap justify-center gap-8 max-w-6xl mx-auto items-center">
           {activePlans.map((plan, index) => {
             const isHighlighted = index === 1
-
             const numericPrice =
               typeof plan.price === 'string'
                 ? parseFloat(plan.price)
@@ -75,7 +38,6 @@ export default async function Planos() {
             const [inteiro, centavos] = (numericPrice || 0)
               .toFixed(2)
               .split('.')
-
             const benefitsList = plan.description
               ? String(plan.description)
                   .split(',')

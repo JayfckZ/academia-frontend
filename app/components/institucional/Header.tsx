@@ -8,7 +8,7 @@ export default function Header() {
       <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
         <Link href="/" className="flex items-center h-full">
           <Image
-            src="/logo-2.png"
+            src="/logo-3.png"
             alt="Codefit Logo"
             width={160}
             height={40}
