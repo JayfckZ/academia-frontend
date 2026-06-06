@@ -1,22 +1,20 @@
-import { cookies } from 'next/headers'
-
 export async function apiFetch(endpoint: string, options: RequestInit = {}) {
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL
-
-  const cookieStore = await cookies()
-  const token = cookieStore.get('codefit_token')?.value
-
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3333'
   const headers = new Headers(options.headers)
-  headers.set('Content-Type', 'application/json')
 
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`)
+  if (options.body) {
+    headers.set('Content-Type', 'application/json')
   }
 
-  const response = await fetch(`${baseUrl}${endpoint}`, {
+  if (typeof window !== 'undefined') {
+    const token = document.cookie.split('codefit_token=')[1]?.split(';')[0]
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`)
+    }
+  }
+
+  return fetch(`${baseUrl}${endpoint}`, {
     ...options,
     headers
   })
-
-  return response
 }
