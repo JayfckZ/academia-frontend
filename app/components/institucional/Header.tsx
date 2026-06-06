@@ -47,9 +47,9 @@ export default function Header() {
         <div className="flex items-center gap-4">
           <Link
             href="/login"
-            className="hidden sm:inline-block border border-brand-cyan text-brand-cyan px-6 py-2 font-bold uppercase text-sm rounded hover:bg-brand-cyan hover:text-brand-dark transition-colors"
+            className="inline-block border border-brand-cyan text-brand-cyan px-6 py-2 font-bold uppercase text-sm rounded hover:bg-brand-cyan hover:text-brand-dark transition-colors"
           >
-            Área do colaborador
+            Login colaborador
           </Link>
 
           {/* <Link
