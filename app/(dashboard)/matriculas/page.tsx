@@ -22,10 +22,16 @@ import {
   IconButton,
   Switch,
   Chip,
-  Autocomplete
+  Autocomplete,
+  Tooltip,
+  CircularProgress,
+  LinearProgress
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/Edit'
+import QueryStatsIcon from '@mui/icons-material/QueryStats'
+import WarningAmberIcon from '@mui/icons-material/WarningAmber'
+import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined'
 import RoleGuard from '@/app/components/dashboard/RoleGuard'
 import Toast from '@/app/components/dashboard/Toast'
 import { apiFetch } from '@/app/lib/api'
@@ -56,6 +62,12 @@ interface Enrollment {
   plan: Plan
 }
 
+interface RiskPrediction {
+  student_id: string
+  default_probability: number
+  is_high_risk: boolean
+}
+
 type ChipColor =
   | 'default'
   | 'primary'
@@ -72,10 +84,20 @@ export default function MatriculasPage() {
   const [totalCount, setTotalCount] = useState(0)
   const [page, setPage] = useState(0)
   const [rowsPerPage, setRowsPerPage] = useState(5)
+
+  // Estados para os Modais
   const [modalOpen, setModalOpen] = useState(false)
   const [editingEnrollment, setEditingEnrollment] = useState<Enrollment | null>(
     null
   )
+
+  // Estados para o Risco (ML)
+  const [riskModalOpen, setRiskModalOpen] = useState(false)
+  const [analyzingRisk, setAnalyzingRisk] = useState(false)
+  const [selectedRiskEnrollment, setSelectedRiskEnrollment] =
+    useState<Enrollment | null>(null)
+  const [riskData, setRiskData] = useState<RiskPrediction | null>(null)
+
   const [toast, setToast] = useState<{
     open: boolean
     message: string
@@ -141,17 +163,12 @@ export default function MatriculasPage() {
   useEffect(() => {
     fetchPlansData()
       .then(setPlans)
-      .catch(() => showToast('Erro ao carregar planos', 'error'))
-  }, [showToast])
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
-    fetchEnrollmentsData(page, rowsPerPage)
-      .then(({ list, count }) => {
-        setEnrollments(list)
-        setTotalCount(count)
-      })
-      .catch(() => showToast('Erro ao carregar matrículas', 'error'))
-  }, [page, rowsPerPage, showToast])
+    loadEnrollments()
+  }, [loadEnrollments])
 
   const handleSearchStudent = async (query: string) => {
     if (query.trim().length < 2) return
@@ -236,7 +253,10 @@ export default function MatriculasPage() {
 
       if (!res.ok) {
         const err = await res.json()
-        showToast(err.message || 'Erro ao processar matrícula', 'error')
+        showToast(
+          err.message || err.error || 'Erro ao processar matrícula',
+          'error'
+        )
         return
       }
 
@@ -251,6 +271,42 @@ export default function MatriculasPage() {
     }
   }
 
+  // --- Funções de IA (Machine Learning) ---
+  const handleOpenRiskAnalysis = async (enrollment: Enrollment) => {
+    setSelectedRiskEnrollment(enrollment)
+    setRiskModalOpen(true)
+    setAnalyzingRisk(true)
+    setRiskData(null)
+
+    try {
+      const res = await apiFetch(`/enrollments/${enrollment.id}/risk`)
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(
+          data.error || 'O serviço de IA está indisponível no momento.'
+        )
+      }
+
+      setRiskData(data)
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        showToast(error.message, 'error')
+      } else {
+        showToast('Erro desconhecido ao conectar com a IA.', 'error')
+      }
+      setRiskModalOpen(false)
+    } finally {
+      setAnalyzingRisk(false)
+    }
+  }
+
+  const getRiskValue = () => {
+    if (!riskData || typeof riskData.default_probability !== 'number') return 0
+
+    return riskData.default_probability * 100
+  }
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
     return new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC' }).format(date)
@@ -258,10 +314,10 @@ export default function MatriculasPage() {
 
   const formatDuration = (duration: number, type: string) => {
     const types: Record<string, string> = {
-      DAYS: duration === 1 ? 'Dia' : 'Dias',
-      WEEKS: duration === 1 ? 'Semana' : 'Semanas',
-      MONTHS: duration === 1 ? 'Mês' : 'Meses',
-      YEARS: duration === 1 ? 'Ano' : 'Anos'
+      DAYS: 'Dias',
+      WEEKS: 'Semanas',
+      MONTHS: 'Meses',
+      YEARS: 'Anos'
     }
     return `${duration} ${types[type] || type}`
   }
@@ -281,8 +337,6 @@ export default function MatriculasPage() {
         return 'error'
       case 'EXPIRED':
         return 'warning'
-      case 'SUSPENDED':
-        return 'default'
       default:
         return 'default'
     }
@@ -296,8 +350,6 @@ export default function MatriculasPage() {
         return 'Cancelada'
       case 'EXPIRED':
         return 'Expirada'
-      case 'SUSPENDED':
-        return 'Suspensa'
       default:
         return status
     }
@@ -309,7 +361,7 @@ export default function MatriculasPage() {
       fallback={
         <Box sx={{ p: 4, textAlign: 'center' }}>
           <Typography color="error" variant="h6">
-            Acesso negado. Seu cargo não permite visualizar as matrículas.
+            Acesso negado.
           </Typography>
         </Box>
       }
@@ -325,7 +377,6 @@ export default function MatriculasPage() {
         <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
           Gestão de Matrículas
         </Typography>
-
         <Button
           variant="contained"
           startIcon={<AddIcon />}
@@ -377,6 +428,16 @@ export default function MatriculasPage() {
                       />
                     </TableCell>
                     <TableCell align="right">
+                      {isActive && (
+                        <Tooltip title="Analisar Risco (IA)" arrow>
+                          <IconButton
+                            color="info"
+                            onClick={() => handleOpenRiskAnalysis(enrollment)}
+                          >
+                            <QueryStatsIcon />
+                          </IconButton>
+                        </Tooltip>
+                      )}
                       <Switch
                         checked={isActive}
                         onChange={() => handleToggleStatus(enrollment)}
@@ -408,6 +469,7 @@ export default function MatriculasPage() {
         />
       </Paper>
 
+      {/* Modal de Nova/Editar Matrícula (MANTIDO INTACTO) */}
       <Dialog open={modalOpen} onClose={resetForm} maxWidth="sm" fullWidth>
         <DialogTitle>
           {editingEnrollment ? 'Editar Matrícula' : 'Realizar Nova Matrícula'}
@@ -451,7 +513,6 @@ export default function MatriculasPage() {
                   )}
                   noOptionsText="Digite para buscar..."
                 />
-
                 <TextField
                   select
                   label="Selecionar Plano"
@@ -470,7 +531,6 @@ export default function MatriculasPage() {
                 </TextField>
               </>
             )}
-
             <TextField
               label="Data de Início"
               name="startDate"
@@ -495,6 +555,112 @@ export default function MatriculasPage() {
             }
           >
             {editingEnrollment ? 'Salvar Alteração' : 'Confirmar Matrícula'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Modal de Análise de Risco (NOVO) */}
+      <Dialog
+        open={riskModalOpen}
+        onClose={() => !analyzingRisk && setRiskModalOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <QueryStatsIcon color="info" />
+          Análise Preditiva
+        </DialogTitle>
+        <DialogContent dividers sx={{ textAlign: 'center', py: 4 }}>
+          {analyzingRisk ? (
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 2
+              }}
+            >
+              <CircularProgress color="info" />
+              <Typography color="text.secondary">
+                O modelo está analisando o histórico...
+              </Typography>
+            </Box>
+          ) : riskData ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                {selectedRiskEnrollment?.student.name}
+              </Typography>
+
+              <Box>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Probabilidade de Inadimplência / Cancelamento
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Box sx={{ flexGrow: 1 }}>
+                    <LinearProgress
+                      variant="determinate"
+                      value={getRiskValue()}
+                      color={
+                        getRiskValue() > 60
+                          ? 'error'
+                          : getRiskValue() > 30
+                            ? 'warning'
+                            : 'success'
+                      }
+                      sx={{ height: 10, borderRadius: 5 }}
+                    />
+                  </Box>
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      fontWeight: 'bold',
+                      fontFamily: 'var(--font-fira-code)',
+                      minWidth: 60
+                    }}
+                  >
+                    {getRiskValue().toFixed(1)}%
+                  </Typography>
+                </Box>
+              </Box>
+
+              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
+                {getRiskValue() > 60 ? (
+                  <Chip
+                    icon={<WarningAmberIcon />}
+                    label="Risco Alto"
+                    color="error"
+                    variant="outlined"
+                  />
+                ) : getRiskValue() > 30 ? (
+                  <Chip
+                    icon={<WarningAmberIcon />}
+                    label="Risco Moderado"
+                    color="warning"
+                    variant="outlined"
+                  />
+                ) : (
+                  <Chip
+                    icon={<CheckCircleOutlinedIcon />}
+                    label="Risco Baixo"
+                    color="success"
+                    variant="outlined"
+                  />
+                )}
+              </Box>
+            </Box>
+          ) : (
+            <Typography color="error">
+              Não foi possível carregar a análise.
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button
+            onClick={() => setRiskModalOpen(false)}
+            color="inherit"
+            disabled={analyzingRisk}
+          >
+            Fechar
           </Button>
         </DialogActions>
       </Dialog>
