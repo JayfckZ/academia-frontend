@@ -601,9 +601,9 @@ export default function MatriculasPage() {
                       variant="determinate"
                       value={getRiskValue()}
                       color={
-                        getRiskValue() > 90
+                        getRiskValue() > 70
                           ? 'error'
-                          : getRiskValue() > 60
+                          : getRiskValue() > 40
                             ? 'warning'
                             : 'success'
                       }
@@ -624,14 +624,14 @@ export default function MatriculasPage() {
               </Box>
 
               <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
-                {getRiskValue() > 90 ? (
+                {getRiskValue() > 70 ? (
                   <Chip
                     icon={<WarningAmberIcon />}
                     label="Risco Alto"
                     color="error"
                     variant="outlined"
                   />
-                ) : getRiskValue() > 60 ? (
+                ) : getRiskValue() > 40 ? (
                   <Chip
                     icon={<WarningAmberIcon />}
                     label="Risco Moderado"
