@@ -36,6 +36,7 @@ interface Employee {
   role: 'ADMIN' | 'MANAGER' | 'RECEPTION' | 'TRAINER'
   active: boolean
   createdAt: string
+  lastLoginAt?: string
 }
 
 const ROLES = [
@@ -187,7 +188,6 @@ export default function FuncionariosPage() {
         return
       }
 
-
       showToast(
         `Funcionário ${editingId ? 'atualizado' : 'cadastrado'} com sucesso`,
         'success'
@@ -201,6 +201,17 @@ export default function FuncionariosPage() {
 
   const getRoleLabel = (role: string) => {
     return ROLES.find((r) => r.value === role)?.label || role
+  }
+
+  const formatLastLogin = (dateString?: string) => {
+    if (!dateString) return 'Nunca acessou'
+    return new Intl.DateTimeFormat('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(new Date(dateString))
   }
 
   return (
@@ -251,6 +262,7 @@ export default function FuncionariosPage() {
                 <TableCell>Nome</TableCell>
                 <TableCell>E-mail</TableCell>
                 <TableCell>Cargo</TableCell>
+                <TableCell>Último login</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell align="right">Ações</TableCell>
               </TableRow>
@@ -267,6 +279,9 @@ export default function FuncionariosPage() {
                       color="primary"
                       variant="outlined"
                     />
+                  </TableCell>
+                  <TableCell sx={{ fontFamily: 'var(--font-fira-code)' }}>
+                    {formatLastLogin(employee.lastLoginAt)}
                   </TableCell>
                   <TableCell>
                     <Chip
